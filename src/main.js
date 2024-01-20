@@ -1,3 +1,4 @@
+import axios from 'axios';
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
 import SimpleLightbox from 'simplelightbox';
@@ -6,59 +7,106 @@ import 'simplelightbox/dist/simple-lightbox.min.css';
 const form = document.querySelector('.form');
 const gallery = document.querySelector('.gallery');
 const loader = document.querySelector('.loader');
+const buttonLoadMore = document.querySelector('.btn-load-more');
 
-const lightbox = new SimpleLightbox('.gallery a', {
-    captionsData: 'alt',
-    captionDelay: 250,
-  });
+const modal = new SimpleLightbox('.gallery a', {
+  captionsData: 'alt',
+  captionDelay: 250,
+});
 
-form.addEventListener('submit', toRenderImages);
+const per_page = 40;
+let page = 1;
+let userSearch = '';
 
-function toRenderImages(event) {
+form.addEventListener('submit', handleSubmit);
+buttonLoadMore.addEventListener('click', handleLoadMore);
+
+async function handleSubmit(event) {
   event.preventDefault();
+  page = 1;
   gallery.innerHTML = '';
+  userSearch = form.search.value.trim();
 
-  const userSearch = form.search.value.trim();
+  buttonLoadMore.classList.add('hide');
+  const images = await fetchImages();
 
-  const url = new URL('https://pixabay.com/api/');
-  url.searchParams.append('key', '41892846-853e297a2cd9e54f76867f33a');
-  url.searchParams.append('q', userSearch);
-  url.searchParams.append('image_type', 'photo');
-  url.searchParams.append('orientation', 'horizontal');
-  url.searchParams.append('safesearch', true);
+  if (images.hits.length === 0) {
+    iziToast.error({
+      position: 'topRight',
+      message:
+        'Sorry, there are no images matching your search query. Please try again!',
+      backgroundColor: '#987fbb',
+    });
+  } else if (images.hits.length < per_page) {
+    iziToast.error({
+      position: 'topRight',
+      message: "We're sorry, but you've reached the end of search results.",
+      backgroundColor: '#987fbb',
+    });
+  } else {
+    buttonLoadMore.classList.remove('hide');
+  }
 
+  form.reset();
+  renderImages(images);
+}
+
+async function handleLoadMore() {
+  page += 1;
+
+  buttonLoadMore.classList.add('hide');
+  const images = await fetchImages();
+
+  if (page >= Math.ceil(images.totalHits / per_page)) {
+    iziToast.error({
+      position: 'topRight',
+      message: "We're sorry, but you've reached the end of search results.",
+      backgroundColor: '#987fbb',
+    });
+  } else {
+    buttonLoadMore.classList.remove('hide');
+  }
+
+  renderImages(images);
+  moveCard();
+}
+
+async function fetchImages() {
   loader.classList.remove('hide');
+  try {
+    const images = await axios.get('https://pixabay.com/api/', {
+      params: {
+        key: '41892846-853e297a2cd9e54f76867f33a',
+        q: userSearch,
+        image_type: 'photo',
+        orientation: 'horizontal',
+        safesearch: true,
+        per_page: per_page,
+        page: page,
+      },
+    });
+    return images.data;
+  } catch (error) {
+    console.log(error.message);
+    iziToast.error({
+      position: 'topRight',
+      message: 'Sorry, service unavailable.',
+      backgroundColor: '#987fbb',
+    });
+  } finally {
+    loader.classList.add('hide');
+  }
+}
 
-  fetch(url)
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Your request is not ok!');
-      }
-      return response.json();
-    })
-    .then(images => {
-      if (images.hits.length === 0) {
-        iziToast.error({
-          title: 'Nothing found!',
-          message:
-            'Sorry, there are no images matching your search query. Please try again!',
-        });
-      }
-      gallery.innerHTML = images.hits.reduce(
-        (
-          acc,
-          {
-            webformatURL,
-            largeImageURL,
-            tags,
-            likes,
-            views,
-            comments,
-            downloads,
-          }
-        ) =>
-          acc +
-          `<li class='gallery-item'>
+function renderImages(images) {
+  const markup = images.hits.reduce(
+    (
+      html,
+      { webformatURL, largeImageURL, tags, likes, views, comments, downloads }
+    ) => {
+      return (
+        html +
+        `<li class='gallery-item'>
               <a class='gallery-link' href='${largeImageURL}'>
                 <img
                     class='gallery-image'
@@ -68,21 +116,29 @@ function toRenderImages(event) {
                     height='200'
                     />
               </a>
+              <p class='gallery-tags'>Tags: ${tags}</p>
               <ul class='gallery-statistic'>
                   <li><p class='statistic'>💗 Likes<span>${likes}</span></p></li>
                   <li><p class='statistic'>👁️ Views<span>${views}</span></p></li>
                   <li><p class='statistic'>💬 Comments<span>${comments}</span></p></li>
                   <li><p class='statistic'>💌 Downloads<span>${downloads}</span></p></li>
               </ul>
-            </li>`,
-        ''
+            </li>`
       );
+    },
+    ''
+  );
 
-      lightbox.refresh();
-    })
-    .catch(error => console.log(error))
-    .finally(() => {
-      loader.classList.add('hide');
-      form.reset();
-    });
+  gallery.insertAdjacentHTML('beforeend', markup);
+  modal.refresh();
+}
+
+function moveCard() {
+  const card = document.querySelector('.gallery-item');
+  const domRect = card.getBoundingClientRect().height;
+
+  window.scrollBy({
+    top: domRect * 2,
+    behavior: 'smooth',
+  });
 }
