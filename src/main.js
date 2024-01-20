@@ -35,13 +35,13 @@ async function handleSubmit(event) {
       position: 'topRight',
       message:
         'Sorry, there are no images matching your search query. Please try again!',
-      backgroundColor: '#987fbb',
+      backgroundColor: '#3957b1',
     });
   } else if (images.hits.length < per_page) {
     iziToast.error({
       position: 'topRight',
       message: "We're sorry, but you've reached the end of search results.",
-      backgroundColor: '#987fbb',
+      backgroundColor: '#3957b1',
     });
   } else {
     buttonLoadMore.classList.remove('hide');
@@ -61,7 +61,7 @@ async function handleLoadMore() {
     iziToast.error({
       position: 'topRight',
       message: "We're sorry, but you've reached the end of search results.",
-      backgroundColor: '#987fbb',
+      backgroundColor: '#3957b1',
     });
   } else {
     buttonLoadMore.classList.remove('hide');
@@ -91,7 +91,7 @@ async function fetchImages() {
     iziToast.error({
       position: 'topRight',
       message: 'Sorry, service unavailable.',
-      backgroundColor: '#987fbb',
+      backgroundColor: '#3957b1',
     });
   } finally {
     loader.classList.add('hide');
